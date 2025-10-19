@@ -11,6 +11,10 @@ path = "src/lib.rs"
 name = "C2RustAgent"
 path = "src/main.rs"
 
+[[bin]]
+name = "c2rust-agent-config"
+path = "src/bin/config.rs"
+
 [dependencies]
 clang = "2.0"
 clang-sys = "1.8"
@@ -21,6 +25,10 @@ thiserror = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 tokio = { version = "1", features = ["full"] }
+async-openai = "0.24"
+config = "0.14"
+dirs = "5.0"
+toml = "0.8"
 
 [dev-dependencies]
 tokio-test = "0.4"

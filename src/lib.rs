@@ -6,5 +6,6 @@ pub mod analysis;
 pub mod ast_to_mir;
 pub mod codegen;
 pub mod llm_assists;
+pub mod llm_config;
 pub mod mir;
 pub mod project_loader;

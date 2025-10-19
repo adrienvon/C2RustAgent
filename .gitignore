@@ -1,1 +1,8 @@
 /target
+
+# 配置文件（可能包含 API Key）
+c2rust-agent.toml
+
+# 备份文件
+*.bak
+*~

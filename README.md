@@ -66,6 +66,8 @@ C 源码 → Clang AST → MIR → 静态分析 → Rust 代码生成
 - **Clang**: libclang 绑定 (clang 2.0, clang-sys 1.8)
 - **序列化**: serde 1.0 + serde_json 1.0
 - **错误处理**: anyhow 1.0, thiserror 1.0
+- **LLM 集成**: async-openai 0.24, tokio 1.x
+- **配置管理**: config 0.14, toml 0.8
 
 ## 快速开始
 
@@ -95,6 +97,80 @@ cd C2RustAgent
 cargo build
 ```
 
+### LLM API 配置
+
+C2RustAgent 使用 OpenAI API 进行语义分析。配置方法（按优先级排序）：
+
+#### 方法一：使用配置文件（推荐）
+
+```bash
+# 创建用户配置文件
+cargo run --bin c2rust-agent-config -- init
+
+# 编辑配置文件，设置您的 API Key
+# Windows: %APPDATA%\c2rust-agent\config.toml
+# Linux/macOS: ~/.config/c2rust-agent/config.toml
+```
+
+配置文件示例：
+```toml
+provider = "openai"
+api_key = "sk-your-api-key-here"
+model = "gpt-4o-mini"
+temperature = 0.3
+max_tokens = 1000
+```
+
+#### 方法二：使用环境变量
+
+```bash
+# Linux/macOS
+export OPENAI_API_KEY=sk-your-api-key-here
+
+# Windows PowerShell
+$env:OPENAI_API_KEY="sk-your-api-key-here"
+```
+
+#### 方法三：项目配置文件
+
+```bash
+# 为当前项目创建配置
+cargo run --bin c2rust-agent-config -- init-project
+
+# 编辑 c2rust-agent.toml
+# 注意：不要将包含真实 API Key 的文件提交到 Git！
+```
+
+#### 配置管理工具
+
+```bash
+# 查看当前配置
+cargo run --bin c2rust-agent-config -- show
+
+# 查看详细配置（包括配置来源）
+cargo run --bin c2rust-agent-config -- show --verbose
+
+# 验证配置
+cargo run --bin c2rust-agent-config -- validate
+
+# 查看配置文件路径
+cargo run --bin c2rust-agent-config -- path
+```
+
+#### Mock 模式（开发测试）
+
+如果没有 API Key，可以使用 Mock 模式进行测试：
+
+```bash
+# Linux/macOS
+export USE_MOCK_LLM=true
+
+# Windows PowerShell
+$env:USE_MOCK_LLM="true"
+```
+
+详细配置说明见 [docs/openai_api_integration.md](./docs/openai_api_integration.md)。
+
 ### 运行示例
 
 ```bash
@@ -102,6 +178,7 @@ cargo run
 ```
 
 当前示例将展示：
+
 1. C 代码的 Clang AST 解析
 2. MIR 数据结构的构建
 3. JSON 序列化输出

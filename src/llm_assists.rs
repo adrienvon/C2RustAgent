@@ -2,7 +2,16 @@
 //!
 //! 提供 LLM 增强功能，用于推断语义、所有权契约等
 
-use anyhow::Result;
+use crate::llm_config::LlmConfig;
+use anyhow::{Context, Result};
+use async_openai::{
+    Client,
+    config::OpenAIConfig,
+    types::{
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    },
+};
 
 /// 为外部库函数推断语义标注
 ///
@@ -54,9 +63,33 @@ pub async fn infer_external_api_semantics(
         function_name, header_file_content
     );
 
-    // TODO: 实际调用 LLM API（如 OpenAI、Anthropic 等）
-    // 这里先返回模拟结果
-    infer_external_api_semantics_mock(function_name, &prompt).await
+    // 尝试调用真实 LLM API，失败时回退到 mock
+    match call_llm_api(
+        &prompt,
+        Some("你是一个 C 语言和系统编程专家，擅长分析 C API 的语义和资源管理行为。"),
+    )
+    .await
+    {
+        Ok(response) => {
+            // 解析 LLM 响应，提取标签
+            let tags: Vec<String> = response
+                .lines()
+                .filter(|line| line.starts_with('[') && line.contains(']'))
+                .map(|line| line.trim().to_string())
+                .collect();
+
+            // 如果 LLM 返回了标签，使用它们；否则回退到 mock
+            if !tags.is_empty() {
+                tags
+            } else {
+                infer_external_api_semantics_mock(function_name, &prompt).await
+            }
+        }
+        Err(_) => {
+            // API 调用失败，回退到 mock
+            infer_external_api_semantics_mock(function_name, &prompt).await
+        }
+    }
 }
 
 /// 模拟 LLM 调用（用于开发/测试）
@@ -150,8 +183,19 @@ pub async fn generate_module_documentation(
         file_name, module_name, project_name, summary_text
     );
 
-    // TODO: 实际调用 LLM API
-    generate_module_documentation_mock(module_name, file_name, &prompt).await
+    // 尝试调用真实 LLM API，失败时回退到 mock
+    match call_llm_api(
+        &prompt,
+        Some("你是一个 Rust 编程专家，擅长编写清晰、专业的文档注释。"),
+    )
+    .await
+    {
+        Ok(response) => Ok(response),
+        Err(_) => {
+            // API 调用失败，回退到 mock
+            generate_module_documentation_mock(module_name, file_name, &prompt).await
+        }
+    }
 }
 
 /// 模拟模块文档生成
@@ -234,8 +278,19 @@ pub async fn generate_unsafe_explanation(
         project_name, file_name, function_name, reason, c_code, rust_code
     );
 
-    // TODO: 实际调用 LLM API
-    generate_unsafe_explanation_mock(reason, &prompt).await
+    // 尝试调用真实 LLM API，失败时回退到 mock
+    match call_llm_api(
+        &prompt,
+        Some("你是一个 Rust 安全专家，擅长分析和解释 unsafe 代码的安全性要求。"),
+    )
+    .await
+    {
+        Ok(response) => Ok(response),
+        Err(_) => {
+            // API 调用失败，回退到 mock
+            generate_unsafe_explanation_mock(reason, &prompt).await
+        }
+    }
 }
 
 /// 模拟 unsafe 注释生成
@@ -262,22 +317,82 @@ async fn generate_unsafe_explanation_mock(reason: &str, _prompt: &str) -> Result
     Ok(comment)
 }
 
-/// 实际 LLM API 调用接口（占位）
+/// 实际 LLM API 调用接口
 ///
-/// 集成实际 LLM API 时实现此函数
-#[allow(dead_code)]
-async fn call_llm_api(prompt: &str) -> Result<String> {
-    // TODO: 集成实际 LLM API
-    // 例如：
-    // - OpenAI API
-    // - Anthropic Claude API
-    // - 本地 LLM 服务
+/// 使用配置文件或环境变量中的设置进行 API 调用
+///
+/// # 参数
+/// - `prompt`: 用户提示词
+/// - `system_prompt`: 系统提示词（可选）
+///
+/// # 返回值
+/// LLM 生成的响应文本
+async fn call_llm_api(prompt: &str, system_prompt: Option<&str>) -> Result<String> {
+    // 加载配置
+    let config = LlmConfig::load().context("加载 LLM 配置失败")?;
 
-    // 示例返回格式
-    Ok(format!(
-        "LLM 响应（占位）：{}",
-        &prompt[..50.min(prompt.len())]
-    ))
+    // 检查是否使用 mock 模式
+    if config.use_mock {
+        return Err(anyhow::anyhow!("Using mock mode"));
+    }
+
+    // 验证配置
+    config.validate().context("配置验证失败")?;
+
+    // 创建 OpenAI 客户端配置
+    let mut openai_config = OpenAIConfig::new().with_api_key(config.api_key.as_ref().unwrap());
+
+    // 如果指定了自定义 API URL，使用它
+    if let Some(api_url) = &config.api_url {
+        openai_config = openai_config.with_api_base(api_url);
+    }
+
+    // 创建客户端
+    let client = Client::with_config(openai_config);
+
+    // 构建消息列表
+    let mut messages = Vec::new();
+
+    // 添加系统提示（如果有）
+    if let Some(sys_prompt) = system_prompt {
+        let system_message = ChatCompletionRequestSystemMessageArgs::default()
+            .content(sys_prompt)
+            .build()
+            .context("构建系统消息失败")?;
+        messages.push(ChatCompletionRequestMessage::System(system_message));
+    }
+
+    // 添加用户提示
+    let user_message = ChatCompletionRequestUserMessageArgs::default()
+        .content(prompt)
+        .build()
+        .context("构建用户消息失败")?;
+    messages.push(ChatCompletionRequestMessage::User(user_message));
+
+    // 创建请求（使用配置中的参数）
+    let request = CreateChatCompletionRequestArgs::default()
+        .model(&config.model)
+        .messages(messages)
+        .temperature(config.temperature)
+        .max_tokens(config.max_tokens)
+        .build()
+        .context("构建 API 请求失败")?;
+
+    // 发送请求
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .context("OpenAI API 调用失败，请检查配置文件或 OPENAI_API_KEY 环境变量")?;
+
+    // 提取响应内容
+    let content = response
+        .choices
+        .first()
+        .and_then(|choice| choice.message.content.clone())
+        .context("OpenAI 响应中没有内容")?;
+
+    Ok(content)
 }
 
 #[cfg(test)]
