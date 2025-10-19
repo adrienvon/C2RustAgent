@@ -1,6 +1,7 @@
 //! 中级中间表示 (MIR - Middle-level Intermediate Representation)
 //!
 //! 这个模块定义了从 Clang AST 转换而来的中间表示，用于后续的静态分析和 Rust 代码生成。
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,31 @@ pub type BasicBlockId = usize;
 
 /// 变量 ID 类型别名
 pub type VarId = usize;
+
+/// 项目级 MIR：包含全局函数与全局变量
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProjectMIR {
+    pub functions: HashMap<String, Function>,
+    pub globals: HashMap<String, GlobalVar>,
+}
+
+impl ProjectMIR {
+    pub fn new() -> Self {
+        Self {
+            functions: HashMap::new(),
+            globals: HashMap::new(),
+        }
+    }
+}
+
+/// 全局变量
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalVar {
+    pub name: String,
+    pub var_type: Type,
+    pub is_static: bool,
+    pub is_public: bool,
+}
 
 /// 函数的 MIR 表示
 ///
@@ -30,6 +56,12 @@ pub struct Function {
     /// LLM 生成的语义注释
     /// 例如：所有权契约、函数意图等
     pub annotations: Vec<String>,
+
+    /// 是否为 static（内部可见）
+    pub is_static: bool,
+
+    /// 是否为外部可见（导出）
+    pub is_public: bool,
 }
 
 /// 函数参数
@@ -86,6 +118,10 @@ pub struct BasicBlock {
 pub enum Statement {
     /// 赋值语句: LValue = RValue
     Assign(LValue, RValue),
+
+    /// 函数调用: target = func_name(args...)
+    /// target 可用于保存返回值；若无需保存返回值，可用一个未使用的变量占位或未来引入 Unit 目标
+    Call(LValue, String, Vec<RValue>),
 
     /// LLM 生成的语义注释
     /// 用于存储对特定语句的高层语义理解
@@ -215,6 +251,8 @@ impl Function {
             return_type,
             basic_blocks: Vec::new(),
             annotations: Vec::new(),
+            is_static: false,
+            is_public: true,
         }
     }
 
