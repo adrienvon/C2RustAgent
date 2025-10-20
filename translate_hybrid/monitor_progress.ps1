@@ -36,7 +36,8 @@ while ($true) {
             Write-Host "🎉 翻译完成！" -ForegroundColor Green
             break
         }
-    } else {
+    }
+    else {
         Write-Host "⏳ 等待翻译开始..." -ForegroundColor Yellow
     }
     
