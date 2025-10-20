@@ -1,110 +1,224 @@
-# C2RustAgent - C 到 Rust 的智能转译器
+# C2RustAgent - 混合智能 C 到 Rust 转译器
 
-基于 LLM 增强的 C 到 Rust 代码转换工具，结合形式化静态分析与大语言模型的语义理解能力。
+> 基于形式化静态分析与 LLM 增强的 C→Rust 自动迁移系统，从"能用"到"好用"的智能代码转换助理
 
-## 项目概述
+---
 
-C2RustAgent 是一个混合智能体系统，旨在将 C 代码安全、高效地转换为地道的 Rust 代码。系统采用多阶段管道设计：
+## 项目简介
+
+**C2RustAgent** 是一个创新的混合智能体系统，旨在将 C 代码**安全、高效、地道**地转换为 Rust 代码。不同于传统的纯机械翻译，本项目采用"形式化方法 + LLM 协处理"的架构，在保证正确性的同时注入语义理解，生成高质量、可维护的 Rust 代码。
+
+### 核心设计理念
+
+系统的骨架（Clang → MIR → 静态分析 → 代码生成）提供**正确性的基石**，LLM 在管道的关键节点注入**人类程序员的上下文与意图理解**：
 
 ```
-C 源码 → Clang AST → MIR → 静态分析 → Rust 代码生成
-              ↓           ↓         ↓            ↓
-            LLM 语义分析和注释注入（贯穿全流程）
++----------------+      +-------------------+      +-----------------+
+| C Source Code  | ---> | Clang Frontend    | ---> | Clang AST & CFG |
++----------------+      +-------------------+      +-----------------+
+       |                      ^
+       | (Phase 1)            | (LLM Semantic Analysis on raw source)
+       v                      |
++----------------+      +---------------------+      +---------------------+ <---> +------------------+
+| MIR Conversion | ---> |     Our MIR         | ---> |  Analysis Pipeline  |       | LLM Co-pilot     |
+| (翻译为MIR)    |      | (中级中间表示)      |      |  (分析管道)         |       | (语言模型协处理器) |
++----------------+      +---------------------+      +---------------------+ <---> +------------------+
+       |                      |                                ^
+       | (Phase 2)            | (Annotated by LLM)             | (Phase 3: Gets heuristic help)
+       v                      v
++-----------------+      +---------------------+      +-------------------+
+| Annotated MIR   | ---> | Rust Code Generator | ---> | Rust Cargo Project|
+| (注解后的MIR)   |      | (代码生成器)        |      | (最终产物)        |
++-----------------+      +---------------------+      +-------------------+
+       |                               ^
+       | (Phase 4: Gets refinement help) |
+       v
 ```
 
-## 🆕 子项目：Translate Hybrid
+**设计优势**：
+- 🔒 **形式化方法保证正确性** - 可信的静态分析基础
+- 🧠 **LLM 注入语义理解** - 理解代码意图、命名规范和编程模式
+- ✨ **从"能用"到"好用"** - 生成地道、自解释、易维护的 Rust 代码
 
-**混合智能翻译器**（`translate_hybrid/`）是专为比赛优化的实验性模块，提供端到端的 LLM 辅助翻译流程：
+📖 **详细设计文档**：查看 [核心设计理念](docs/CORE_DESIGN.md)
 
-- ✅ **自定义 API 端点**：支持任何兼容 OpenAI 的路由器（如 shengsuanyun.com）
-- ✅ **流式响应**：实时显示翻译进度，解决 Windows 控制台乱码
-- ✅ **迭代修复**：自动运行 `cargo check` 并让 LLM 修复编译错误
-- ✅ **unsafe 优化**：智能分析并减少 unsafe 代码占比（目标 <5%）
+---
 
-👉 **快速开始**：查看 [`translate_hybrid/QUICKSTART.md`](translate_hybrid/QUICKSTART.md)
+## 运行条件
 
-## 🐳 Docker 测试环境
+### 子项目快速实现版本（translate_hybrid/）
 
-一键启动 Docker 容器测试 chibicc 项目翻译，利用大模型的 **1049K 上下文**能力：
+**translate_hybrid** 是一个快速实现的简化转译子项目，展示了 LLM 辅助翻译的完整流程：
+
+**必需环境**：
+* Rust 工具链 1.70+ (推荐使用 rustup)
+* LLM API 访问（支持 OpenAI 兼容接口）
+* Docker (推荐) 或 LLVM/Clang 本地安装
+* Windows/Linux/macOS 操作系统
+
+**推荐配置**：
+* 8GB+ 可用内存
+* 网络连接（用于 API 调用）
+* VS Code + Rust Analyzer (开发调试)
+
+---
+
+## 运行说明
+
+### 方式一：使用 Docker (推荐)
+
+Docker 环境已预配置所有依赖，无需手动安装 LLVM/Clang：
 
 ```powershell
-# Windows 用户 - 基础测试
+# 1. Windows 用户 - 基础测试
 .\scripts\docker_run.ps1
 
-# Windows 用户 - 完整翻译（翻译所有 9 个 C 文件）
+# 2. 完整翻译（翻译 chibicc 的 9 个 C 文件）
 .\scripts\docker_run.ps1 -FullTranslation
 
-# Linux/Mac 用户
+# 3. Linux/Mac 用户
 bash scripts/docker_run.sh
 ```
 
-**功能特性**：
-- ✅ 完整的 Rust + Clang + LLVM 环境
-- ✅ 自动生成 `compile_commands.json`
-- ✅ 单文件翻译测试（利用大上下文）
-- ✅ **完整项目翻译**（9 个 C 文件 → Rust）
-- ✅ 编译验证和 unsafe 分析
+**Docker 环境提供**：
+- ✅ 完整的 Rust + Clang + LLVM 工具链
+- ✅ 自动生成编译数据库 (compile_commands.json)
+- ✅ 单文件翻译测试（利用 1049K 上下文）
+- ✅ 编译验证和 unsafe 代码分析
 - ✅ 迭代修复机制
 - ✅ 详细的翻译报告
 
-**测试结果**：
-- � chibicc 项目：~8,150 行 C 代码
-- ⏱️ 预计翻译时间：15-30 分钟
-- 🎯 目标：编译通过率 >90%，unsafe <5%
+### 方式二：本地运行（需手动配置）
 
-�📖 **详细指南**：
-- [完整文档](docs/docker/DOCKER_GUIDE.md)
-- [快速参考](docs/docker/DOCKER_QUICKREF.md)
-- [chibicc 翻译指南](docs/translation/CHIBICC_TRANSLATION.md) ⭐ 新增
-- [📚 文档索引](docs/INDEX.md) - 完整的文档导航
+```bash
+# 1. 安装 LLVM/Clang（Windows 用户从官网下载安装器）
+#    https://github.com/llvm/llvm-project/releases
+#    设置环境变量 LIBCLANG_PATH
 
-## 核心特性
+# 2. 配置 LLM API
+cargo run --bin c2rust-agent-config -- init
+# 编辑 %APPDATA%\c2rust-agent\config.toml 填写 API Key
 
-### ✅ 已实现
+# 3. 转换示例项目
+cd translate_chibicc
+cargo run -- ./src
 
-#### 阶段一：Clang 前端解析
-- ✅ 使用 `clang` crate 解析 C 代码
-- ✅ AST 遍历和结构提取
-- ✅ 支持标准 C11
+# 4. 查看生成的 Rust 代码
+cd rust_output_final
+cargo build --release
+cargo test
+```
 
-#### 阶段二：MIR（中级中间表示）
-- ✅ 完整的 MIR 数据结构设计
-- ✅ 基本块（Basic Block）和控制流表示
-- ✅ 左值/右值区分
-- ✅ LLM 注释集成点预留
-- ✅ JSON 序列化支持
+**子项目快速开始**：查看 [`translate_hybrid/QUICKSTART.md`](translate_hybrid/QUICKSTART.md)
 
-#### 阶段三：静态分析管道与 LLM 集成
-- ✅ 分析管理器（AnalysisManager）架构
-- ✅ 活跃变量分析接口
-- ✅ LLM 外部 API 语义推断
-  - 资源管理语义（如 malloc/free）
-  - 所有权转移标注
-  - 副作用识别
-  - 参数前置条件
-- ✅ 异步 LLM 调用框架
-- ✅ 完整测试套件
+---
 
-### 🚧 规划中
+## 测试说明
 
-#### 阶段四：AST 到 MIR 转换（部分完成）
-- 🚧 函数声明转换
-- 🚧 表达式降级
-- 🚧 控制流构建（循环、条件）
-- 🚧 变量符号表管理
+### 已验证的测试场景
 
-#### 阶段五：静态分析算法实现
-- 🚧 活跃变量分析算法（数据流分析）
-- 🚧 指针来源分析
-- 🚧 借用检查模拟
-- 🚧 生命周期推断
-- 🚧 可变性分析
+**chibicc C 编译器项目**（translate_chibicc/）：
+- 📦 项目规模：~8,150 行 C 代码，9 个源文件
+- ✅ 已转换：4 个核心模块 (unicode, strings, hashmap, types)
+- ✅ Rust 输出：945 行代码，12/12 单元测试通过
+- ✅ 编译状态：cargo build --release 成功
+- ⏱️ 预计全项目翻译时间：15-30 分钟（使用 LLM）
+- 🎯 目标：编译通过率 >90%，unsafe 代码 <5%
 
-#### 阶段六：Rust 代码生成
-- 🚧 地道 Rust 代码生成
-- 🚧 unsafe 块最小化
-- 🚧 安全注释生成
-- 🚧 代码格式化（rustfmt）
+**测试命令**：
+```bash
+# 运行子项目测试
+cd rust_output_final
+cargo test
+
+# 查看翻译报告
+cat ../docs/reports/TRANSLATION_SUCCESS_SUMMARY.md
+```
+
+**测试结果文档**：
+- [转换成功总结](docs/reports/TRANSLATION_SUCCESS_SUMMARY.md) ⭐ 推荐
+- [详细技术报告](docs/reports/FINAL_TRANSLATION_REPORT.md)
+- [chibicc 转换指南](docs/translation/CHIBICC_TRANSLATION.md)
+
+---
+
+## 技术架构
+
+### 混合智能体系统 (Hybrid Intelligence Agent)
+
+本项目采用**"形式化分析 + LLM 协处理"**的创新架构，在四个关键阶段集成 LLM：
+
+#### 🎯 核心技术栈
+
+**主系统（核心设计 - 进行中）**：
+* **Rust 2024 Edition** - 系统实现语言
+* **libclang/clang-sys** - C 代码前端解析
+* **自定义 MIR** - 中级中间表示（支持 LLM 注释）
+* **静态分析框架** - 数据流分析、借用检查模拟
+* **异步 LLM 集成** - tokio + async-openai
+
+**子项目（快速实现版）**：
+* **直接 LLM 翻译** - 利用大上下文 (1049K) 端到端转换
+* **迭代修复机制** - 自动 cargo check + 错误反馈
+* **流式响应处理** - 实时进度显示
+* **unsafe 优化分析** - 智能减少 unsafe 代码占比
+
+#### 📐 LLM 增强的四个阶段
+
+**阶段一：语义标注器 (Semantic Annotator)**
+- 任务：从 C 源码注释和命名中推断所有权契约
+- 输入：函数签名、变量声明、注释
+- 输出：`[Ownership::Takes]`, `[ReturnsNewResource(free)]` 等标注
+- 集成：标注附加到 MIR 节点作为元数据
+
+**阶段二：启发式顾问 (Heuristic Advisor)**
+- 任务：在静态分析模糊时提供置信度建议
+- 场景：指针类型决策 (&T vs Box<T>)、别名分析冲突
+- 输出：带置信度的建议 + 修复方案
+- 集成：作为分析器的启发式输入
+
+**阶段三：代码润色器 (Code Refiner)**
+- 任务：将机械翻译转换为地道 Rust
+- 优化：C 风格循环 → 迭代器、指针链 → 组合子
+- 输出：可读性更强的 Rust 代码
+- 集成：后处理生成的代码
+
+**阶段四：安全文档生成器 (Safety Documenter)**
+- 任务：为 unsafe 块生成人类可读的安全注释
+- 输入：原始 C 代码 + unsafe Rust + 静态分析理由
+- 输出：`// SAFETY: ...` 注释 + 前置条件说明
+- 集成：插入到 unsafe 块上方
+
+#### � 当前实现状态
+
+**✅ 已完成（主系统基础）**：
+- Clang AST 解析
+- MIR 数据结构设计
+- LLM 异步调用框架
+- 分析管理器架构
+
+**✅ 已完成（子项目）**：
+- 端到端 LLM 翻译
+- Docker 测试环境
+- 4 个模块的成功转换
+- 完整的测试和文档
+
+**🚧 进行中**：
+- AST → MIR 完整转换
+- 静态分析算法实现
+- 借用检查模拟
+- 地道 Rust 代码生成
+
+**� 规划中**：
+- 指针来源分析
+- 生命周期推断
+- unsafe 块最小化
+- 完整项目级翻译
+
+**详细设计文档**：
+- [完整架构图](docs/CORE_DESIGN.md)
+- [LLM 集成策略](docs/P4提示词.md)
+- [文档导航](docs/INDEX.md)
 
 ## 技术栈
 
@@ -113,159 +227,81 @@ bash scripts/docker_run.sh
 - **序列化**: serde 1.0 + serde_json 1.0
 - **错误处理**: anyhow 1.0, thiserror 1.0
 - **LLM 集成**: async-openai 0.24, tokio 1.x
-- **配置管理**: config 0.14, toml 0.8
+---
 
-## 快速开始
+## 协作者
 
-### 环境要求
+### 项目团队
 
-- Rust 工具链（推荐使用 rustup）
-- LLVM/Clang 开发库（需要安装 libclang）
+**核心开发者**：
+- [@adrienvon](https://github.com/adrienvon) - 项目架构设计与核心开发
 
-### 安装依赖
+**特别感谢**：
+- chibicc 项目 - 提供优秀的测试用例
+- Rust 社区 - 技术支持和最佳实践
+- OpenAI - LLM API 支持
 
-```bash
-# Windows (LLVM 官网下载安装器)
-# https://github.com/llvm/llvm-project/releases
+### 贡献指南
 
-# Linux (Ubuntu/Debian)
-sudo apt-get install llvm-dev libclang-dev
+欢迎贡献！请查看我们的贡献指南：
 
-# macOS
-brew install llvm
-```
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
-### 构建项目
+**贡献方向**：
+- 🔧 完善静态分析算法实现
+- 📝 改进 LLM 提示词设计
+- 🧪 添加更多测试用例
+- 📚 完善文档和教程
+- 🐛 Bug 修复和性能优化
 
-```bash
-git clone <repository-url>
-cd C2RustAgent
-cargo build
-```
+---
 
-### LLM API 配置
+## 文档导航
 
-C2RustAgent 使用 OpenAI API 进行语义分析。配置方法（按优先级排序）：
+### 快速入口
+- 📖 [完整文档索引](docs/INDEX.md) - 所有文档的中心导航
+- 🚀 [Docker 快速参考](docs/docker/DOCKER_QUICKREF.md) - 常用命令速查
+- 📊 [转换成功总结](docs/reports/TRANSLATION_SUCCESS_SUMMARY.md) - 最新成果展示
 
-#### 方法一：使用配置文件（推荐）
+### 技术文档
+- 🏗️ [核心设计理念](docs/CORE_DESIGN.md) - 混合智能体架构详解
+- 🔬 [LLM 集成策略](docs/P4提示词.md) - 语义标注、启发式建议
+- 🛠️ [chibicc 转换指南](docs/translation/CHIBICC_TRANSLATION.md) - 完整转换流程
+- 🐳 [Docker 使用指南](docs/docker/DOCKER_GUIDE.md) - 环境配置详解
+- 📋 [项目清理报告](docs/CLEANUP_REPORT.md) - 代码整理记录
+- 📝 [Scripts 使用说明](scripts/README.md) - 脚本工具文档
 
-```bash
-# 创建用户配置文件
-cargo run --bin c2rust-agent-config -- init
+### 子项目文档
+- ⚡ [Translate Hybrid 快速开始](translate_hybrid/QUICKSTART.md) - 简化版转译器
+- 📂 [Translate Chibicc 信息](translate_chibicc/INFO) - chibicc 测试项目
 
-# 编辑配置文件，设置您的 API Key
-# Windows: %APPDATA%\c2rust-agent\config.toml
-# Linux/macOS: ~/.config/c2rust-agent/config.toml
-```
+---
 
-配置文件示例：
-```toml
-provider = "openai"
-api_key = "sk-your-api-key-here"
-model = "gpt-4o-mini"
-temperature = 0.3
-max_tokens = 1000
-```
+## 许可证
 
-#### 方法二：使用环境变量
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
-```bash
-# Linux/macOS
-export OPENAI_API_KEY=sk-your-api-key-here
+---
 
-# Windows PowerShell
-$env:OPENAI_API_KEY="sk-your-api-key-here"
-```
+## 项目状态
 
-#### 方法三：项目配置文件
+- **开发阶段**：早期开发 (Alpha)
+- **主系统**：核心架构设计完成，静态分析算法实现中
+- **子项目**：功能完整，已成功转换 4 个模块并通过测试
+- **最后更新**：2025-01-20
 
-```bash
-# 为当前项目创建配置
-cargo run --bin c2rust-agent-config -- init-project
+**Star ⭐ 本项目以支持我们的工作！**
 
-# 编辑 c2rust-agent.toml
-# 注意：不要将包含真实 API Key 的文件提交到 Git！
-```
+---
 
-#### 配置管理工具
-
-```bash
-# 查看当前配置
-cargo run --bin c2rust-agent-config -- show
-
-# 查看详细配置（包括配置来源）
-cargo run --bin c2rust-agent-config -- show --verbose
-
-# 验证配置
-cargo run --bin c2rust-agent-config -- validate
-
-# 查看配置文件路径
-cargo run --bin c2rust-agent-config -- path
-```
-
-#### Mock 模式（开发测试）
-
-如果没有 API Key，可以使用 Mock 模式进行测试：
-
-```bash
-# Linux/macOS
-export USE_MOCK_LLM=true
-
-# Windows PowerShell
-$env:USE_MOCK_LLM="true"
-```
-
-详细配置说明见 [docs/openai_api_integration.md](./docs/openai_api_integration.md)。
-
-### 运行示例
-
-```bash
-cargo run
-```
-
-当前示例将展示：
-
-1. C 代码的 Clang AST 解析
-2. MIR 数据结构的构建
-3. JSON 序列化输出
-
-### 运行测试
-
-```bash
-cargo test
-```
-
-## 项目结构
-
-```
-C2RustAgent/
-├── Cargo.toml              # 项目配置和依赖
-├── src/
-│   ├── main.rs            # 主程序入口
-│   └── mir.rs             # MIR 数据结构定义
-├── docs/
-│   └── phase2_mir.md      # 阶段二文档
-└── target/                # 构建输出
-```
-
-## 核心设计理念
-
-### 混合智能体架构
-
-本项目采用 **C2Rust-LLM 混合智能体** 设计：
-
-1. **形式化骨架**：使用传统编译器技术（Clang → MIR → 静态分析）确保正确性
-2. **LLM 增强**：在关键节点注入语义理解，提升代码质量和可读性
-
-### LLM 集成策略
-
-LLM 不会替代静态分析，而是作为 **语义协处理器**：
-
-- **阶段二（MIR 转换）**：作为"语义标注器"，推断所有权契约
-- **阶段三（静态分析）**：作为"启发式顾问"，辅助决策
-- **阶段四（代码生成）**：作为"代码润色器"，生成地道 Rust 和安全文档
-
-### 分离关注点
+<p align="center">
+  <strong>从"能用"到"好用"的 C→Rust 智能迁移助理</strong><br>
+  <em>Hybrid Intelligence for Safe Code Migration</em>
+</p>
 
 - ✅ **正确性**：由形式化方法保证（静态分析、类型检查）
 - ✅ **可读性**：由 LLM 提升（注释、命名、模式识别）

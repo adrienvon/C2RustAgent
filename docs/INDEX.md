@@ -76,9 +76,13 @@ C2RustAgent/
 │   └── hashmap.rs         # 哈希表实现
 │
 ├── scripts/                # 自动化脚本
-│   ├── translate_complete.sh
-│   ├── add_strings.sh
-│   └── add_hashmap.sh
+│   ├── docker_run.ps1     # Windows Docker 启动脚本
+│   ├── docker_run.sh      # Linux/Mac Docker 启动脚本
+│   ├── setup_permissions.sh # 权限设置
+│   ├── c_to_rust.py       # Python 转换工具（可选）
+│   ├── translate_intelligent.sh # 智能转换（可选）
+│   ├── translate_single_file.sh # 单文件翻译（可选）
+│   └── README.md          # 脚本使用说明
 │
 └── docs/                   # 📚 文档目录（你在这里）
     ├── docker/            # Docker 相关文档

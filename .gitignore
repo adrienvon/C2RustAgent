@@ -54,6 +54,13 @@ Thumbs.db
 # 临时输出目录（已清理但防止再次生成）
 # CLEANUP_SUMMARY.md 保留作为清理工作的记录
 
+# 临时脚本（一次性使用后应删除）
+scripts/add_*.sh
+scripts/generate_*.sh
+scripts/test_*.sh
+scripts/*_temp.sh
+scripts/*_tmp.*
+
 # 测试和调试产物
 *.profraw
 *.profdata
