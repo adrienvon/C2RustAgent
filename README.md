@@ -109,7 +109,7 @@ cargo build --release
 cargo test
 ```
 
-**子项目快速开始**：查看 [`translate_hybrid/QUICKSTART.md`](translate_hybrid/QUICKSTART.md)
+**子项目快速开始**：查看 [`translate_hybrid/QUICKSTART.md`](translate_hybrid/TRANSLATE_CHIBICC_GUIDE.md)
 
 ---
 

@@ -35,5 +35,8 @@ clap = { version = "4.5", features = ["derive"] }
 encoding_rs = "0.8"
 console = "0.15"
 
+# 文件系统遍历
+walkdir = "2.5"
+
 [dev-dependencies]
 tempfile = "3.0"

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
 use tokio_stream::StreamExt;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// LLM 客户端配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
