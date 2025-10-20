@@ -1,67 +1,202 @@
 # Copilot Instructions for C2RustAgent
 
-## 项目架构与核心流程
+**C2RustAgent** 将 C 代码转换为地道 Rust，通过形式化静态分析保证正确性，用 LLM 增强语义理解。
 
-- **多阶段管道**：C2RustAgent 采用分阶段架构，主流程为：
-  1. C 源码 → Clang AST 解析（`clang` crate，AST 遍历）
-  2. AST → MIR（`ast_to_mir.rs`，结构降级、控制流重建）
-  3. MIR 静态分析（`analysis/`，如活性分析、生命周期推断）
-  4. MIR → Rust 代码生成（规划中）
-  5. LLM 语义增强（多阶段注入注释、推断所有权/用途）
-- **关键数据结构**：MIR 结构定义于 `src/mir.rs`，AST 到 MIR 转换逻辑在 `src/ast_to_mir.rs`。
-- **静态分析**：分析相关代码位于 `src/analysis/`，如 `liveness.rs`。
-- **主入口**：`src/main.rs` 负责 orchestrate 各阶段。
+## 核心架构认知
 
-## 主要开发/运行流程
+### 转换管道（5 阶段）
 
-- **构建**：
-  ```pwsh
-  cargo build
-  ```
-- **运行**：
-  ```pwsh
-  cargo run
-  ```
-- **测试**：
-  ```pwsh
-  cargo test
-  ```
-- **代码风格**：提交前请运行 `cargo fmt` 和 `cargo clippy`。
-- **依赖**：需本地安装 LLVM/Clang（libclang），详见 `README.md`。
+```
+C源码 → [1]Clang AST → [2]MIR → [3]静态分析 → [4]Rust代码生成
+             ↓            ↓          ↓             ↓
+         LLM语义协处理（辅助角色，贯穿全流程）
+```
+
+**设计哲学**：形式化方法保证正确性（借用检查、类型安全），LLM 提升可读性（注释、命名、所有权推断）
+
+### 关键模块与数据流
+
+1. **项目加载** (`src/project_loader.rs`)
+
+   - 输入：`compile_commands.json` (由 `bear -- make` 或 CMake 生成)
+   - 解析编译单元 → `CProject{units: Vec<UnitSpec>}`
+   - 调用：`CProject::load(&path)` → `process_units(callback)`
+
+2. **AST→MIR** (`src/ast_to_mir.rs`) - 两阶段转换
+
+   - **Pass 1**: `discover_symbols()` - 扫描函数签名/全局变量（不展开函数体）
+   - **Pass 2**: `convert_bodies()` - 构建基本块、填充控制流
+   - 输出：`ProjectMIR{functions: HashMap, globals: HashMap}`
+
+3. **静态分析** (`src/analysis/`)
+
+   - `AnalysisManager::run_all_passes()` - 编排所有分析
+   - `PerFunctionResults` - 聚合每个函数的分析结果
+   - 现状：活性分析接口已定义，算法待实现
+
+4. **代码生成** (`src/codegen.rs`)
+
+   - `generate()` - 基线版本（无 LLM）
+   - `generate_with_llm()` - 异步版本（LLM 增强模块文档、unsafe 注释）
+   - 生成完整 Cargo 项目结构 + `lib.rs` + 模块文件
+
+5. **LLM 集成** (`src/llm_assists.rs`)
+   - 所有函数为 `async fn`，支持 Mock 降级（`USE_MOCK_LLM=true`）
+   - 核心功能：`infer_external_api_semantics()` - API 语义推断
+   - 标注系统：`[ReturnsNewResource(free)]` → Rust `impl Drop`
+
+## 开发工作流（Windows）
+
+### 一次性环境配置
+
+```pwsh
+# 1. 安装 LLVM (libclang 依赖，必需)
+# 下载: https://github.com/llvm/llvm-project/releases
+# 安装后可能需设置 LIBCLANG_PATH
+
+# 2. 配置 LLM API (三选一，优先级递减)
+# 方式1: 用户配置 (推荐)
+cargo run --bin c2rust-agent-config -- init
+notepad %APPDATA%\c2rust-agent\config.toml  # 编辑 api_key
+
+# 方式2: 环境变量
+$env:OPENAI_API_KEY="sk-your-key"
+
+# 方式3: 项目配置 (不要提交!)
+cargo run --bin c2rust-agent-config -- init-project
+```
+
+### 日常命令
+
+```pwsh
+cargo build                                  # 构建
+cargo run                                    # 演示模式 (AST + MIR)
+cargo run -- ./translate_littlefs_fuse      # 转换 C 项目
+cargo test                                   # 测试
+cargo fmt && cargo clippy                    # 提交前检查
+
+# 示例程序
+cargo run --example codegen_demo             # 代码生成 (无LLM)
+cargo run --example codegen_llm_demo         # 代码生成 (LLM)
+cargo run --example llm_external_api_demo    # LLM 语义推断
+
+# 配置工具
+cargo run --bin c2rust-agent-config -- show --verbose  # 查看配置
+cargo run --bin c2rust-agent-config -- validate        # 验证
+```
 
 ## 约定与模式
 
-- **MIR 设计**：采用基本块（basic block）+ 显式控制流，左值/右值区分，支持 JSON 序列化（`serde`）。
-- **LLM 集成点**：所有权、用途、命名等语义注释通过 LLM 注入，相关接口预留在 MIR 层。
-- **错误处理**：统一使用 `anyhow`/`thiserror`。
-- **目录结构**：
-  - `src/ast_to_mir.rs`：AST→MIR 转换主逻辑
-  - `src/mir.rs`：MIR 结构与序列化
-  - `src/analysis/`：静态分析模块
-  - `docs/`：阶段设计与实现文档
+### MIR 设计原则
 
-## 典型代码片段
+- **基本块**：每个 `BasicBlock` = `statements[]` + 单个 `Terminator`
+- **左值/右值**：`LValue`(赋值目标) vs `RValue`(表达式)
+- **序列化**：所有 MIR 结构实现 `serde::Serialize`，支持 JSON 导出
+- **LLM 注释**：`Function.annotations: Vec<String>` 存储语义标注
 
-- **MIR 示例**（见 `README.md`）：
-  ```json
-  {
-    "name": "add",
-    "parameters": [ ... ],
-    "basic_blocks": [ ... ],
-    "annotations": [ ... ]
-  }
-  ```
-- **AST→MIR 转换**：
-  - 入口函数通常为 `ast_to_mir::convert_*`，以函数/表达式为粒度递归处理。
-- **静态分析调用**：
-  - 以 MIR 为输入，分析结果可用于 LLM 注释或后续代码生成。
+### 语义标注系统
 
-## 其他说明
+LLM 推断生成的标注及其 Rust 映射：
 
-- **贡献/分支**：遵循 `README.md` 贡献流程。
-- **文档**：详细设计与阶段说明见 `docs/`，如 `phase2_mir.md`。
-- **变更频繁**：架构和 API 仍在快速演进，注意同步主分支。
+```rust
+[ReturnsNewResource(free)]    → impl Drop
+[TakesOwnership(param)]       → fn(param: Box<T>)
+[HasSideEffects]              → unsafe block 候选
+[Pure]                        → const fn 候选
+[RequiresNonNull(param)]      → NonNull<T>
+```
 
----
+### 错误处理策略
 
-如需更详细的开发约定或遇到不明确的结构，请优先查阅 `README.md` 和 `docs/`，或在 PR/Issue 中提出。
+- 使用 `anyhow::Result<T>`，添加上下文：`.with_context(|| "原因")`
+- 生产代码避免 `unwrap()`（示例代码可用）
+
+### 异步 LLM 约定
+
+```rust
+pub async fn infer_something(...) -> Vec<String> {
+    match call_llm_api(...).await {
+        Ok(resp) => parse_response(resp),
+        Err(_) => fallback_to_mock(...),  // 优雅降级
+    }
+}
+// 测试: #[tokio::test]
+```
+
+### 项目结构
+
+```
+src/
+├── main.rs           # CLI: demo 或转换 C 项目
+├── mir.rs            # MIR 数据结构
+├── ast_to_mir.rs     # 两阶段转换: discover_symbols + convert_bodies
+├── codegen.rs        # generate[_with_llm]()
+├── llm_assists.rs    # LLM 语义推断
+├── project_loader.rs # CProject::load() + process_units()
+├── analysis/mod.rs   # AnalysisManager + 分析结果
+└── bin/config.rs     # 配置 CLI
+```
+
+## 常见任务
+
+### 添加静态分析 Pass
+
+```rust
+// 1. 创建 src/analysis/pointer_analysis.rs
+pub struct PointerAnalysisResult { ... }
+pub fn run_pointer_analysis(func: &Function) -> PointerAnalysisResult { ... }
+
+// 2. 在 analysis/mod.rs 注册
+pub struct PerFunctionResults {
+    pub pointer_origins: PointerAnalysisResult,  // 新增字段
+}
+impl AnalysisManager<'_> {
+    pub fn run_all_passes(&self) -> ProjectAnalysisResults {
+        per_fn.pointer_origins = run_pointer_analysis(func);
+    }
+}
+```
+
+### 扩展 LLM 推断
+
+```rust
+// llm_assists.rs 中添加新函数
+pub async fn infer_lifetime_annotations(func: &Function) -> Vec<String> {
+    let prompt = format!("分析 MIR 推断生命周期:\n{:#?}", func);
+    match call_llm_api(&prompt, ...).await {
+        Ok(resp) => parse_lifetime_tags(resp),
+        Err(_) => mock_lifetime_inference(func),  // 必须提供 mock
+    }
+}
+```
+
+### 处理新 C 项目
+
+```bash
+# 1. 生成 compile_commands.json
+cd your_c_project
+bear -- make  # 或 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
+
+# 2. 运行转换
+cargo run -- /path/to/your_c_project
+```
+
+## 调试技巧
+
+- **查看 MIR**：`serde_json::to_string_pretty(&function)?`
+- **Mock LLM**：`$env:USE_MOCK_LLM="true"; cargo test`
+- **查看 AST**：`main.rs` 中的 `traverse_ast()` 函数
+
+## 参考文档
+
+- 架构设计：`docs/phase*.md`
+- 配置指南：`docs/QUICKSTART_CONFIG.md`
+- 示例项目：`translate_littlefs_fuse/`、`translate_chibicc/`
+
+## 注意事项
+
+⚠️ **API 演进中** - 架构可能频繁变更  
+⚠️ **安全配置** - 不要提交包含 API Key 的 `c2rust-agent.toml`  
+⚠️ **LLVM 依赖** - Windows 需安装 LLVM 并配置 LIBCLANG_PATH
+
+**速查**：示例代码见 `examples/` 目录
