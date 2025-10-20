@@ -6,3 +6,12 @@ c2rust-agent.toml
 # 备份文件
 *.bak
 *~
+
+# Docker 相关
+translation_report.txt
+rust_output/
+tmp/
+
+# 翻译临时文件
+*.tmp.c
+*.tmp.rs

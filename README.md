@@ -12,6 +12,38 @@ C 源码 → Clang AST → MIR → 静态分析 → Rust 代码生成
             LLM 语义分析和注释注入（贯穿全流程）
 ```
 
+## 🆕 子项目：Translate Hybrid
+
+**混合智能翻译器**（`translate_hybrid/`）是专为比赛优化的实验性模块，提供端到端的 LLM 辅助翻译流程：
+
+- ✅ **自定义 API 端点**：支持任何兼容 OpenAI 的路由器（如 shengsuanyun.com）
+- ✅ **流式响应**：实时显示翻译进度，解决 Windows 控制台乱码
+- ✅ **迭代修复**：自动运行 `cargo check` 并让 LLM 修复编译错误
+- ✅ **unsafe 优化**：智能分析并减少 unsafe 代码占比（目标 <5%）
+
+👉 **快速开始**：查看 [`translate_hybrid/QUICKSTART.md`](translate_hybrid/QUICKSTART.md)
+
+## 🐳 Docker 测试环境
+
+一键启动 Docker 容器测试 chibicc 项目翻译，利用大模型的 **1049K 上下文**能力：
+
+```powershell
+# Windows 用户
+.\scripts\docker_run.ps1
+
+# Linux/Mac 用户
+bash scripts/docker_run.sh
+```
+
+**功能特性**：
+- ✅ 完整的 Rust + Clang + LLVM 环境
+- ✅ 自动生成 `compile_commands.json`
+- ✅ 单文件翻译测试（利用大上下文）
+- ✅ 编译验证和 unsafe 分析
+- ✅ 迭代修复机制
+
+📖 **详细指南**：[`DOCKER_GUIDE.md`](DOCKER_GUIDE.md) | 快速参考：[`DOCKER_QUICKREF.md`](DOCKER_QUICKREF.md)
+
 ## 核心特性
 
 ### ✅ 已实现

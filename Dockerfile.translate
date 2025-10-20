@@ -1,0 +1,40 @@
+# 使用 Ubuntu 22.04 作为基础镜像
+FROM ubuntu:22.04
+
+# 设置环境变量避免交互式提示
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# 安装必要的系统依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    clang \
+    llvm \
+    libclang-dev \
+    curl \
+    git \
+    pkg-config \
+    libssl-dev \
+    bear \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . "$HOME/.cargo/env" \
+    && rustup default stable
+
+# 设置 Rust 环境变量
+ENV PATH="/root/.cargo/bin:${PATH}"
+ENV LIBCLANG_PATH="/usr/lib/llvm-14/lib"
+
+# 创建工作目录
+WORKDIR /workspace
+
+# 复制整个项目
+COPY . .
+
+# 设置工作目录权限
+RUN chmod -R 755 /workspace
+
+# 默认命令
+CMD ["/bin/bash"]

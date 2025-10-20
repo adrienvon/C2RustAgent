@@ -1,0 +1,25 @@
+# Rust
+/target/
+Cargo.lock
+
+# 配置文件（包含 API Key）
+config/hybrid_config.toml
+
+# 输出目录
+output/
+
+# 测试临时文件
+tests/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,94 @@
+# Translate Hybrid 配置文件示例
+# 复制此文件为 hybrid_config.toml 并修改相关配置
+
+[llm]
+# LLM API 配置
+# 支持任何兼容 OpenAI API 的端点
+base_url = "https://router.shengsuanyun.com/api/v1"
+api_key = "your-api-key-here"
+
+# 模型选择
+# 推荐：google/gemini-2.5-pro:discount, gpt-4o, claude-3-opus
+model = "google/gemini-2.5-pro:discount"
+
+# 生成参数
+temperature = 0.6     # 0.0-1.0, 越低越确定性
+top_p = 0.7          # 0.0-1.0, 控制采样多样性
+max_tokens = 4000    # 单次响应最大 token 数
+
+# 流式输出（推荐开启以实时查看进度）
+stream = true
+
+# 超时设置（秒）
+timeout = 120
+
+# 重试配置
+max_retries = 3
+retry_delay_ms = 1000
+
+[translation]
+# 翻译策略
+mode = "hybrid"  # "hybrid" | "llm-only" | "ast-only"
+
+# unsafe 优化
+unsafe_optimization_rounds = 2       # unsafe 优化迭代次数
+unsafe_target_ratio = 0.05          # 目标 unsafe 占比（5%）
+
+# 语法检查
+syntax_fix_max_retries = 3          # 语法错误修复最大重试次数
+enable_auto_fix = true               # 是否自动修复编译错误
+
+# 代码风格
+use_rustfmt = true                   # 是否使用 rustfmt 格式化
+rustfmt_edition = "2024"
+
+[preprocessing]
+# C 代码预处理
+expand_macros = true                 # 是否展开宏
+include_comments = true              # 是否保留注释
+extract_type_info = true             # 是否提取详细类型信息
+
+# AST 上下文深度
+context_depth = 2                    # 0: 仅当前函数, 1: +依赖函数, 2: +相关结构体
+
+[project]
+# 项目级配置
+generate_cargo_toml = true           # 是否自动生成 Cargo.toml
+handle_ffi = true                    # 是否处理 FFI 依赖
+
+# FFI 策略
+ffi_mode = "bindgen"                 # "bindgen" | "manual" | "skip"
+bindgen_options = [
+    "--use-core",
+    "--with-derive-default"
+]
+
+# 模块化策略
+module_per_file = true               # 每个 C 文件生成一个 Rust 模块
+separate_globals = true              # 全局变量单独模块
+
+[output]
+# 输出配置
+output_dir = "./output"              # 输出目录
+create_tests = true                  # 是否生成测试文件
+generate_docs = true                 # 是否生成文档注释
+
+# 日志级别
+log_level = "info"                   # "trace" | "debug" | "info" | "warn" | "error"
+
+# Windows 控制台设置
+fix_console_encoding = true          # 自动修复 Windows 乱码
+use_unicode_output = true            # 使用 Unicode 输出
+
+[prompts]
+# Prompt 模板路径
+template_dir = "./config/prompts"
+
+# 自定义 Prompt 参数
+max_context_lines = 50               # 单个 Prompt 最大上下文行数
+include_examples = true              # 是否包含示例代码
+
+[benchmark]
+# 性能测试配置
+enable_metrics = true                # 是否收集性能指标
+save_intermediate = false            # 是否保存中间结果（用于调试）
