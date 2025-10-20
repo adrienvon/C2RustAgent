@@ -1,17 +1,59 @@
+# Rust 构建产物
 /target
+**/target/
+*.pdb
+*.exe
+*.dll
+*.so
+*.dylib
 
 # 配置文件（可能包含 API Key）
 c2rust-agent.toml
+hybrid_config.toml
 
 # 备份文件
 *.bak
 *~
+*.swp
+*.swo
 
 # Docker 相关
 translation_report.txt
 rust_output/
+rust_output_*/
 tmp/
 
-# 翻译临时文件
+# 翻译临时文件和报告
 *.tmp.c
 *.tmp.rs
+*.txt
+*_report.txt
+*_translation_*.txt
+final_report.txt
+chibicc_translation_report.txt
+translation_report_v2.txt
+
+# 增量编译产物（从附件中的文件）
+*.rmeta
+*.rlib
+*.d
+/incremental/
+**/incremental/
+
+# 编译数据库和临时构建文件
+compile_commands.json.backup
+*.lock.backup
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# 临时输出目录（已清理但防止再次生成）
+# CLEANUP_SUMMARY.md 保留作为清理工作的记录
+
+# 测试和调试产物
+*.profraw
+*.profdata

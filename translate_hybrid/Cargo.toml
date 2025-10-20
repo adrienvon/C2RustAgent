@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 # 依赖主项目的核心库
-c2rust_agent = { path = ".." }
+c2rust_agent = { package = "C2RustAgent", path = ".." }
 
 # HTTP 客户端和异步运行时
 reqwest = { version = "0.12", features = ["json", "stream"] }

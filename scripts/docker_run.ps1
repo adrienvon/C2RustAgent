@@ -1,6 +1,27 @@
 # Docker 快速启动脚本 (PowerShell 版本)
 # 用于 Windows 环境
 
+param(
+    [switch]$FullTranslation,  # 运行完整翻译测试
+    [switch]$Help
+)
+
+if ($Help) {
+    Write-Host @"
+用法: .\scripts\docker_run.ps1 [选项]
+
+选项:
+  -FullTranslation    运行完整的 chibicc 翻译测试
+  -Help              显示此帮助信息
+
+示例:
+  .\scripts\docker_run.ps1                  # 基础测试（自动运行）
+  .\scripts\docker_run.ps1 -FullTranslation # 完整翻译测试
+
+"@ -ForegroundColor Cyan
+    exit 0
+}
+
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host "C2RustAgent Docker 测试环境" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
@@ -52,14 +73,24 @@ docker rm -f $ContainerName 2>$null
 Write-Host "步骤 2: 启动 Docker 容器..." -ForegroundColor Green
 Write-Host ""
 
-# 在 Windows 上需要转换路径格式
-$UnixPath = $WorkspaceDir.Path -replace '\\', '/' -replace 'C:', '/c'
+# 选择运行的脚本
+$RunScript = if ($FullTranslation) {
+    Write-Host "模式: 完整翻译测试" -ForegroundColor Cyan
+    Write-Host "警告: 这将翻译所有 9 个 C 文件，可能需要 15-30 分钟" -ForegroundColor Yellow
+    Write-Host ""
+    "/workspace/scripts/translate_chibicc_full.sh"
+} else {
+    Write-Host "模式: 基础测试" -ForegroundColor Cyan
+    Write-Host "提示: 使用 -FullTranslation 参数运行完整翻译" -ForegroundColor Gray
+    Write-Host ""
+    "/workspace/scripts/test_translation.sh"
+}
 
 docker run -it --name $ContainerName `
     -v "${WorkspaceDir}:/workspace" `
     -w /workspace `
     $ImageName `
-    /bin/bash -c "chmod +x /workspace/scripts/*.sh && /workspace/scripts/test_translation.sh && /bin/bash"
+    /bin/bash -c "chmod +x /workspace/scripts/*.sh && $RunScript && /bin/bash"
 
 Write-Host ""
 Write-Host "容器已退出" -ForegroundColor Gray

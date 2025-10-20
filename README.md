@@ -28,8 +28,11 @@ C 源码 → Clang AST → MIR → 静态分析 → Rust 代码生成
 一键启动 Docker 容器测试 chibicc 项目翻译，利用大模型的 **1049K 上下文**能力：
 
 ```powershell
-# Windows 用户
+# Windows 用户 - 基础测试
 .\scripts\docker_run.ps1
+
+# Windows 用户 - 完整翻译（翻译所有 9 个 C 文件）
+.\scripts\docker_run.ps1 -FullTranslation
 
 # Linux/Mac 用户
 bash scripts/docker_run.sh
@@ -39,10 +42,21 @@ bash scripts/docker_run.sh
 - ✅ 完整的 Rust + Clang + LLVM 环境
 - ✅ 自动生成 `compile_commands.json`
 - ✅ 单文件翻译测试（利用大上下文）
+- ✅ **完整项目翻译**（9 个 C 文件 → Rust）
 - ✅ 编译验证和 unsafe 分析
 - ✅ 迭代修复机制
+- ✅ 详细的翻译报告
 
-📖 **详细指南**：[`DOCKER_GUIDE.md`](DOCKER_GUIDE.md) | 快速参考：[`DOCKER_QUICKREF.md`](DOCKER_QUICKREF.md)
+**测试结果**：
+- � chibicc 项目：~8,150 行 C 代码
+- ⏱️ 预计翻译时间：15-30 分钟
+- 🎯 目标：编译通过率 >90%，unsafe <5%
+
+�📖 **详细指南**：
+- [完整文档](docs/docker/DOCKER_GUIDE.md)
+- [快速参考](docs/docker/DOCKER_QUICKREF.md)
+- [chibicc 翻译指南](docs/translation/CHIBICC_TRANSLATION.md) ⭐ 新增
+- [📚 文档索引](docs/INDEX.md) - 完整的文档导航
 
 ## 核心特性
 
